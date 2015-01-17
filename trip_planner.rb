@@ -1,8 +1,10 @@
 require 'httparty'
 require 'cgi'
+require 'pry'
+require 'date'
 
 class TripPlanner
-  attr_reader :user, :forecast, :recommendation
+  attr_reader :user, :forecast, :recommendation, :forecast_info
   
   def initialize
     # Should be empty, you'll create and store @user, @forecast and @recommendation elsewhere
@@ -21,12 +23,28 @@ class TripPlanner
   # def save_recommendation
   # end
   
-  def create_user
+  def create_user(name = "George", destination = "Los Angeles", duration = 3)
+    @user = [name, destination, duration]
     # provide the interface asking for name, destination and duration
     # then, create and store the User object
   end
   
   def retrieve_forecast
+    days = @user[2]
+    units = "imperial" # you can change this to metric if you prefer
+    options = "daily?q=#{CGI::escape(@user[1])}&mode=json&units=#{units}&cnt=#{days}"
+    url = "http://api.openweathermap.org/data/2.5/forecast/#{options}"
+    @forecast_info = HTTParty.get(url)["list"]
+    @forecast = forecast_info.map do |days|
+      days.map do |key, record|
+        if key == "dt"
+          Time.at(record)
+        else
+          record
+        end
+      end
+    end
+
     # use HTTParty.get to get the forecast, and then turn it into an array of
     # Weather objects... you  might want to institute the two methods below
     # so this doesn't get out of hand...
@@ -51,6 +69,12 @@ class TripPlanner
   # def collect_accessories
   # end
 end
+
+trip = TripPlanner.new
+trip.create_user
+trip.retrieve_forecast
+
+Pry.start(binding)
 
 class Weather
   attr_reader :min_temp, :max_temp, :condition
