@@ -2,6 +2,7 @@ require 'httparty'
 require 'cgi'
 require 'pry'
 require 'date'
+require 'colorize'
 
 class TripPlanner
   attr_reader :user, :forecast, :recommendation, :forecast_info
@@ -10,7 +11,41 @@ class TripPlanner
     # Should be empty, you'll create and store @user, @forecast and @recommendation elsewhere
   end
   
-  def plan
+  def start
+    self.create_user
+    self.retrieve_forecast
+    self.create_recommendation
+    
+    puts "Hello #{self.user.name}! Here is your forecast and recommendations!".red
+    puts ""
+    self.recommendation.each do |index|
+      index.each do |keys, data|
+        if keys == :date
+          puts "#{keys}".magenta + "   ::   ".yellow + "#{data}".green
+        elsif keys == :clothes
+          clothes_string ||= ""
+          data.each do |clothes|
+            clothes_string += "#{clothes}, "
+          end
+          clothes_string[-2] = ""
+          puts "#{keys}".magenta + "   ::   ".yellow + clothes_string.cyan
+        elsif keys == :accessory
+          accessories_string ||= ""
+          data.each do |accessory|
+            accessories_string += "#{accessory}, "
+          end
+          accessories_string[-2] = ""
+          puts "#{keys}".magenta + "   ::   ".yellow + accessories_string.cyan
+        else
+         puts "#{keys}".magenta + "   ::   ".yellow + "#{data}".blue
+        end
+      end
+      puts " "
+    end
+
+
+
+
     # Plan should call create_user, retrieve_forecast and create_recommendation 
     # After, you should display the recommendation, and provide an option to 
     # save it to disk.  There are two optional methods below that will keep this
@@ -40,8 +75,8 @@ class TripPlanner
     units = "imperial" # you can change this to metric if you prefer
     options = "daily?q=#{CGI::escape(@user.destination)}&mode=json&units=#{units}&cnt=#{days}"
     url = "http://api.openweathermap.org/data/2.5/forecast/#{options}"
-    @forecast_info = HTTParty.get(url)["list"]
-    @forecast = forecast_info.map do |days|
+    forecast_info = HTTParty.get(url)["list"]
+    forecast_array = forecast_info.map do |days|
       days.map do |key, record|
         if key == "dt"
           Time.at(record)
@@ -50,7 +85,9 @@ class TripPlanner
         end
       end
     end
-
+    @forecast = forecast_array.map do |day|
+      {date: day[0], min_temp: day[1]["min"], max_temp: day[1]["max"], condition: day[4][0]["main"]}
+    end
     # use HTTParty.get to get the forecast, and then turn it into an array of
     # Weather objects... you  might want to institute the two methods below
     # so this doesn't get out of hand...
@@ -67,19 +104,13 @@ class TripPlanner
     # clothing and accessories, store the result in @recommendation.  You might
     # want to implement the two methods below to help you kee this method
     # smaller...
-    recommendation_days = @forecast.map do |day| #[day, mintemp, maxtemp,condition]
-      [day[0],day[1]["min"],day[1]["max"],day[4][0]["main"]]
+    @recommendation = @forecast.map do |day|
+      weather = Weather.new(day[:min_temp].to_i,day[:max_temp].to_i,day[:condition])
+      {date: day[:date], min_temp: day[:min_temp], max_temp: day[:max_temp], condition: day[:condition], clothes: weather.appropriate_clothing , accessory: weather.appropriate_accessories}
     end
-    recommendation_days.map do |day|
-      weather = Weather.new(day[1].to_i,day[2].to_i,day[3])
-      {date: day[0], clothes: weather.appropriate_clothing , accessory: weather.appropriate_accessories}
-    end
-      #weather = [Weather.new(day[1].to_i,day[2].to_i,day[3])
-      #
-    #end
 
   end
-  
+
   # def collect_clothes
   # end
   #
@@ -110,13 +141,13 @@ class Weather
     {
       min_temp: 33, max_temp: 60,
       recommendation: [
-        "light jacket", "regular underwear", "jeans", "long sleeves"
+        "light jacket", "regular underwear", "jeans", "long sleeves", "spanks", "snuggie"
       ]
     },
     {
       min_temp: 61, max_temp: 100,
       recommendation:[
-      "shorts", "t-shirt", "sandals"
+      "shorts-shorts", "t-shirt", "sandals", "jeans with holes", "birthday suit"
       ]
     }
   ]
@@ -144,6 +175,12 @@ class Weather
       condition: "Clouds",
       recommendation: [
         "fake mustache", "vermillion tinted sunglasses"
+      ]
+    },
+    {
+      condition: "Thunderstorm",
+      recommendation: [
+        "flux capacitor", "delorean"
       ]
     }
   ]
@@ -205,6 +242,6 @@ class User
 end
 
 trip = TripPlanner.new
-trip.create_user
-trip.retrieve_forecast
-Pry.start(binding)
+trip.start
+
+#Pry.start(binding)
