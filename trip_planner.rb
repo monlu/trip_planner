@@ -16,7 +16,7 @@ class TripPlanner
     self.retrieve_forecast
     self.create_recommendation
     
-    puts "Hello #{self.user.name}! Here is your forecast and recommendations!".red
+    puts "Hello #{self.user.name}! Here are your forecasts for #{self.forecast_info["city"]["name"]} and recommendations!".red
     puts ""
     self.recommendation.each do |index|
       index.each do |keys, data|
@@ -75,7 +75,8 @@ class TripPlanner
     units = "imperial" # you can change this to metric if you prefer
     options = "daily?q=#{CGI::escape(@user.destination)}&mode=json&units=#{units}&cnt=#{days}"
     url = "http://api.openweathermap.org/data/2.5/forecast/#{options}"
-    forecast_info = HTTParty.get(url)["list"]
+    @forecast_info = HTTParty.get(url)
+    forecast_info = @forecast_info["list"]
     forecast_array = forecast_info.map do |days|
       days.map do |key, record|
         if key == "dt"
@@ -241,7 +242,6 @@ class User
   end
 end
 
+#Pry.start(binding)
 trip = TripPlanner.new
 trip.start
-
-#Pry.start(binding)
